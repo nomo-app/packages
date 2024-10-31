@@ -100,20 +100,47 @@ public class WebViewHostApiImpl implements WebViewHostApi {
           (int version) -> Build.VERSION.SDK_INT >= version);
     }
 
-    @VisibleForTesting
+@VisibleForTesting
     WebViewPlatformView(
         @NonNull Context context,
         @NonNull BinaryMessenger binaryMessenger,
         @NonNull InstanceManager instanceManager,
         @NonNull AndroidSdkChecker sdkChecker) {
-      super(context);
-      currentWebViewClient = new WebViewClient();
-      currentWebChromeClient = new WebChromeClientHostApiImpl.SecureWebChromeClient();
-      api = new WebViewFlutterApiImpl(binaryMessenger, instanceManager);
-      this.sdkChecker = sdkChecker;
+        super(context);
+        
+        // Create our custom WebViewClient that injects headers
+        currentWebViewClient = new WebViewClient() {
+            @Override
+            public WebResourceResponse shouldInterceptRequest(WebView view, WebResourceRequest request) {
+                WebResourceResponse response = super.shouldInterceptRequest(view, request);
+                
+                if (response != null) {
+                    Map<String, String> newHeaders = new HashMap<>();
+                    if (response.getResponseHeaders() != null) {
+                        newHeaders.putAll(response.getResponseHeaders());
+                    }
+                    newHeaders.put("Cross-Origin-Embedder-Policy", "require-corp");
+                    newHeaders.put("Cross-Origin-Opener-Policy", "same-origin");
+                    
+                    return new WebResourceResponse(
+                        response.getMimeType(),
+                        response.getEncoding(),
+                        response.getStatusCode(),
+                        response.getReasonPhrase(),
+                        newHeaders,
+                        response.getData()
+                    );
+                }
+                return response;
+            }
+        };
+        
+        currentWebChromeClient = new WebChromeClientHostApiImpl.SecureWebChromeClient();
+        api = new WebViewFlutterApiImpl(binaryMessenger, instanceManager);
+        this.sdkChecker = sdkChecker;
 
-      setWebViewClient(currentWebViewClient);
-      setWebChromeClient(currentWebChromeClient);
+        setWebViewClient(currentWebViewClient);
+        setWebChromeClient(currentWebChromeClient);
     }
 
     @Nullable
