@@ -235,10 +235,42 @@ public class WebViewHostApiImpl implements WebViewHostApi {
     displayListenerProxy.onPreWebViewInitialization(displayManager);
 
     final WebView webView = webViewProxy.createWebView(context, binaryMessenger, instanceManager);
+    configureWebView(webView, instanceId);
 
     displayListenerProxy.onPostWebViewInitialization(displayManager);
     instanceManager.addDartCreatedInstance(webView, instanceId);
   }
+
+      private void configureWebView(WebView webView, Long instanceId) {
+        // Existing configuration code will be here...
+        
+        // Add our custom WebViewClient
+        webView.setWebViewClient(new WebViewClient() {
+            @Override
+            public WebResourceResponse shouldInterceptRequest(WebView view, WebResourceRequest request) {
+                WebResourceResponse response = super.shouldInterceptRequest(view, request);
+                
+                if (response != null) {
+                    Map<String, String> newHeaders = new HashMap<>();
+                    if (response.getResponseHeaders() != null) {
+                        newHeaders.putAll(response.getResponseHeaders());
+                    }
+                    newHeaders.put("Cross-Origin-Embedder-Policy", "require-corp");
+                    newHeaders.put("Cross-Origin-Opener-Policy", "same-origin");
+                    
+                    return new WebResourceResponse(
+                        response.getMimeType(),
+                        response.getEncoding(),
+                        response.getStatusCode(),
+                        response.getReasonPhrase(),
+                        newHeaders,
+                        response.getData()
+                    );
+                }
+                return response;
+            }
+        });
+    }
 
   @Override
   public void loadData(
