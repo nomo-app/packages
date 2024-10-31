@@ -111,43 +111,37 @@ public class WebViewHostApiImpl implements WebViewHostApi {
         @NonNull AndroidSdkChecker sdkChecker) {
         super(context);
 
-        // Enable cross-origin features
-        getSettings().setAllowUniversalAccessFromFileURLs(true);
-        getSettings().setAllowFileAccessFromFileURLs(true);
+      // Enable debugging
+        setWebContentsDebuggingEnabled(true);
+        
+        // Enable JavaScript
         getSettings().setJavaScriptEnabled(true);
         
-        // Create our custom WebViewClient that injects headers
+        // Create custom WebViewClient
         currentWebViewClient = new WebViewClient() {
             @Override
             public void onPageFinished(WebView view, String url) {
-                // Inject JavaScript to check if it worked
+                android.util.Log.d("WebView", "Page finished loading: " + url);
+                
                 view.evaluateJavascript(
+                    "console.log('DEBUG: Testing cross-origin isolation...');" +
                     "console.log('crossOriginIsolated:', window.crossOriginIsolated);" +
                     "console.log('COEP:', document.querySelector('meta[http-equiv=\"Cross-Origin-Embedder-Policy\"]')?.content);" +
                     "console.log('COOP:', document.querySelector('meta[http-equiv=\"Cross-Origin-Opener-Policy\"]')?.content);",
-                    null
-                );
-                
-                // Try to inject meta tags if they don't exist
-                view.evaluateJavascript(
-                    "if(!document.querySelector('meta[http-equiv=\"Cross-Origin-Embedder-Policy\"]')) {" +
-                    "  let meta = document.createElement('meta');" +
-                    "  meta.httpEquiv = 'Cross-Origin-Embedder-Policy';" +
-                    "  meta.content = 'require-corp';" +
-                    "  document.head.appendChild(meta);" +
-                    "}" +
-                    "if(!document.querySelector('meta[http-equiv=\"Cross-Origin-Opener-Policy\"]')) {" +
-                    "  let meta = document.createElement('meta');" +
-                    "  meta.httpEquiv = 'Cross-Origin-Opener-Policy';" +
-                    "  meta.content = 'same-origin';" +
-                    "  document.head.appendChild(meta);" +
-                    "}",
-                    null
+                    value -> android.util.Log.d("WebView", "JavaScript result: " + value)
                 );
             }
         };
         
-        currentWebChromeClient = new WebChromeClientHostApiImpl.SecureWebChromeClient();
+        // Create WebChromeClient to capture console.log
+        currentWebChromeClient = new WebChromeClientHostApiImpl.SecureWebChromeClient() {
+            @Override
+            public boolean onConsoleMessage(android.webkit.ConsoleMessage consoleMessage) {
+                android.util.Log.d("WebView", "Console: " + consoleMessage.message());
+                return true;
+            }
+        };
+        
         api = new WebViewFlutterApiImpl(binaryMessenger, instanceManager);
         this.sdkChecker = sdkChecker;
 
