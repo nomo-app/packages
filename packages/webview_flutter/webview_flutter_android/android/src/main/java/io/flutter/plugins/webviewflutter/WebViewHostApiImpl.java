@@ -23,6 +23,9 @@ import io.flutter.plugin.platform.PlatformView;
 import io.flutter.plugins.webviewflutter.GeneratedAndroidWebView.WebViewHostApi;
 import java.util.Map;
 import java.util.Objects;
+import android.webkit.WebResourceResponse;
+import android.webkit.WebResourceRequest;
+import java.util.HashMap;
 
 /**
  * Host api implementation for {@link WebView}.
