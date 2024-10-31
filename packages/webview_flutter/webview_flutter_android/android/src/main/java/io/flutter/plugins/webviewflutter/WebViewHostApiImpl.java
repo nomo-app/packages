@@ -110,31 +110,40 @@ public class WebViewHostApiImpl implements WebViewHostApi {
         @NonNull InstanceManager instanceManager,
         @NonNull AndroidSdkChecker sdkChecker) {
         super(context);
+
+        // Enable cross-origin features
+        getSettings().setAllowUniversalAccessFromFileURLs(true);
+        getSettings().setAllowFileAccessFromFileURLs(true);
+        getSettings().setJavaScriptEnabled(true);
         
         // Create our custom WebViewClient that injects headers
         currentWebViewClient = new WebViewClient() {
             @Override
-            public WebResourceResponse shouldInterceptRequest(WebView view, WebResourceRequest request) {
-                WebResourceResponse response = super.shouldInterceptRequest(view, request);
+            public void onPageFinished(WebView view, String url) {
+                // Inject JavaScript to check if it worked
+                view.evaluateJavascript(
+                    "console.log('crossOriginIsolated:', window.crossOriginIsolated);" +
+                    "console.log('COEP:', document.querySelector('meta[http-equiv=\"Cross-Origin-Embedder-Policy\"]')?.content);" +
+                    "console.log('COOP:', document.querySelector('meta[http-equiv=\"Cross-Origin-Opener-Policy\"]')?.content);",
+                    null
+                );
                 
-                if (response != null) {
-                    Map<String, String> newHeaders = new HashMap<>();
-                    if (response.getResponseHeaders() != null) {
-                        newHeaders.putAll(response.getResponseHeaders());
-                    }
-                    newHeaders.put("Cross-Origin-Embedder-Policy", "require-corp");
-                    newHeaders.put("Cross-Origin-Opener-Policy", "same-origin");
-                    
-                    return new WebResourceResponse(
-                        response.getMimeType(),
-                        response.getEncoding(),
-                        response.getStatusCode(),
-                        response.getReasonPhrase(),
-                        newHeaders,
-                        response.getData()
-                    );
-                }
-                return response;
+                // Try to inject meta tags if they don't exist
+                view.evaluateJavascript(
+                    "if(!document.querySelector('meta[http-equiv=\"Cross-Origin-Embedder-Policy\"]')) {" +
+                    "  let meta = document.createElement('meta');" +
+                    "  meta.httpEquiv = 'Cross-Origin-Embedder-Policy';" +
+                    "  meta.content = 'require-corp';" +
+                    "  document.head.appendChild(meta);" +
+                    "}" +
+                    "if(!document.querySelector('meta[http-equiv=\"Cross-Origin-Opener-Policy\"]')) {" +
+                    "  let meta = document.createElement('meta');" +
+                    "  meta.httpEquiv = 'Cross-Origin-Opener-Policy';" +
+                    "  meta.content = 'same-origin';" +
+                    "  document.head.appendChild(meta);" +
+                    "}",
+                    null
+                );
             }
         };
         
